@@ -47,6 +47,6 @@ function mockReview(payment, baseline) {
     flags.push({ signal: 'outside listed markets', why: `Buyer country ${payment.country} is not in the markets you listed (${b.markets.join(', ')}). This is a mismatch against your own settings, not a fraud verdict.`, suggested_check: 'Confirm the shipping address matches the order details before fulfilling.' });
   const amt = parseFloat(payment.amount || '0');
   if (Number.isFinite(b.typical_max_amount) && amt > b.typical_max_amount)
-    flags.push({ signal: 'above your typical order size', why: `${payment.amount} ${payment.currency} is above the typical order limit you set (${b.typical_max_amount} ${b.currency || ''}).`, suggested_check: 'Message the buyer to confirm the order before shipping.' });
+    flags.push({ signal: 'above your typical order size', why: `${payment.amount} ${payment.currency} is above the typical order limit in your review settings (${b.typical_max_amount} ${b.currency || ''}).`, suggested_check: 'Message the buyer to confirm the order before shipping.' });
   return { flags, summary: flags.length ? `${flags.length} signal(s) vs your settings.` : 'No mismatches against your settings.', mocked: true };
 }

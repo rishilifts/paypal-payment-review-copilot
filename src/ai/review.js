@@ -114,12 +114,16 @@ function compactFacts(payment, baseline) {
   };
 }
 
-export async function reviewPayment(payment, baseline) {
-  if ((process.env.AI_PROVIDER || 'mock') === 'mock') return mockReview(payment, baseline);
+// Provider is an EXPLICIT per-call option - the global env is never mutated
+// per request, so concurrent rules/AI reviews cannot leak into each other.
+export async function reviewPayment(payment, baseline, opts = {}) {
+  const provider = opts.provider || process.env.AI_PROVIDER || 'mock';
+  if (provider === 'mock') return mockReview(payment, baseline);
   const key = process.env.META_API_KEY;
   if (!key) throw new Error('META_API_KEY not set');
+  const fetchImpl = opts.fetchImpl || fetch;
   const facts = compactFacts(payment, baseline);
-  const r = await fetch(`${process.env.META_BASE_URL || 'https://api.meta.ai'}/v1/chat/completions`, {
+  const r = await fetchImpl(`${process.env.META_BASE_URL || 'https://api.meta.ai'}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({

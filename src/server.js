@@ -39,7 +39,11 @@ async function readBody(req) {
 }
 
 function withReviews(payments) {
-  return payments.map(p => ({ ...p, raw: undefined, review: store.getReview(p.id) || null }));
+  return payments.map(p => {
+    const ai = store.getAiReview(p.id);
+    return { ...p, raw: undefined, review: store.getReview(p.id) || null,
+      ai: ai ? { provider: ai.provider, model: ai.model, ran_at: ai.ran_at, ai_status: ai.ai_status || null, baseline_hash: ai.baseline_hash } : null };
+  });
 }
 
 const server = http.createServer(async (req, res) => {
@@ -107,12 +111,11 @@ const server = http.createServer(async (req, res) => {
         if (cached && cached.baseline_hash === bh && url.searchParams.get('force') !== '1')
           return send(res, 200, { ok: !cached.ai_status, ai: cached, cached: true });
         if (!process.env.META_API_KEY) return send(res, 400, { error: 'META_API_KEY not set' });
-        const savedProvider = process.env.AI_PROVIDER;
-        process.env.AI_PROVIDER = 'meta';
+        // Explicit per-call provider; the global env is never touched, so a
+        // concurrent rules review can never be routed to the paid AI endpoint.
         let review;
-        try { review = await reviewPayment(p, cfg); }
+        try { review = await reviewPayment(p, cfg, { provider: 'meta' }); }
         catch (e) { return send(res, 502, { error: `AI review failed: ${e.message}` }); }
-        finally { if (savedProvider === undefined) delete process.env.AI_PROVIDER; else process.env.AI_PROVIDER = savedProvider; }
         const usage = recordUsage(review.usage);
         const ai = { ...review, baseline_hash: bh, ran_at: new Date().toISOString() };
         // Persist every outcome, including failures, with usage recorded above -

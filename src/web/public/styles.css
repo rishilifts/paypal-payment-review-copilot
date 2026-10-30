@@ -12,7 +12,7 @@ h1 { font-size: 40px; line-height: 1.05; font-weight: 700; letter-spacing: -0.03
 .status { color: #6b6b6b; font-size: 13px; padding: 6px 0 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 .row { border-top: 1px solid #1c1c1c; padding: 22px 0; }
 .row:last-of-type { border-bottom: 1px solid #1c1c1c; }
-.row .top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.row .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .amount { font-size: 26px; font-weight: 700; font-family: ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: -0.02em; }
 .state { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
 .state.needs_review { color: #f5b759; }
@@ -46,3 +46,9 @@ button:disabled { opacity: 0.4; cursor: default; }
 
 .aitag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #1b2a4a; color: #7fb2ff; border: 1px solid #2c4a7f; }
 .rulestag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #222; color: #999; border: 1px solid #333; }
+
+.row .amount { white-space: nowrap; }
+.signalcode { font-size: 11px; color: #666; margin-top: 2px; font-family: ui-monospace, monospace; }
+button.airun { background: none; border: 1px solid #2c4a7f; color: #7fb2ff; font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+button.airun:disabled { opacity: 0.5; cursor: default; }
+.ainote { font-size: 12px; color: #888; margin-top: 6px; }

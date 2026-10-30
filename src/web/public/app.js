@@ -5,6 +5,8 @@ const mockbar = document.getElementById('mockbar');
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const stateText = { needs_review: 'Needs review', marked_for_review: 'Marked for review', cleared_by_seller: 'Cleared', no_signals: 'No signals' };
+const signalText = { amount_above_typical_max: 'Above your typical order size', outside_markets: 'Outside your listed markets', missing_email: 'Missing payer email' };
+const signalLabel = s => signalText[s] || String(s || '').replace(/_/g, ' ');
 
 function fmtTime(iso) {
   if (!iso) return '';
@@ -18,10 +20,13 @@ function row(p) {
   const st = r.status && r.status !== 'needs_review' ? r.status : (hasFlags ? 'needs_review' : 'no_signals');
   const flags = (r.flags || []).map(f => `
     <div class="flag">
-      <div class="signal">${esc(f.signal)}</div>
+      <div class="signal">${esc(signalLabel(f.signal))}</div>${signalText[f.signal] ? `<div class="signalcode">${esc(f.signal)}</div>` : ''}
       <div class="why">${esc(f.why)}</div>
       ${f.suggested_check ? `<div class="check">Check: ${esc(f.suggested_check)}</div>` : ''}
     </div>`).join('');
+  const aiBtn = p.ai && !p.ai.ai_status
+    ? `<button class="airun" data-act="ai">AI review saved - replay (no new call)</button>`
+    : `<button class="airun" data-act="ai">Run AI review - uses one Meta credit call</button>`;
   const actions = st === 'needs_review'
     ? `<div class="actions"><button class="mark" data-act="mark">Mark for review</button><button class="clear" data-act="clear">Clear flags</button></div>`
     : st === 'marked_for_review'
@@ -38,6 +43,8 @@ function row(p) {
     ${flags ? `<div class="flags">${flags}</div>` : (st === 'no_signals' ? '<div class="clean">Nothing here conflicts with your settings.</div>' : '')}
     ${r.summary && hasFlags ? `<div class="summary">${esc(r.summary)}</div>` : ''}
     ${actions}
+    <div class="actions">${aiBtn}</div>
+    <div class="ainote" data-ainote></div>
   </article>`;
 }
 
@@ -66,7 +73,17 @@ list.addEventListener('click', async e => {
   if (!b) return;
   const id = b.closest('.row').dataset.id;
   b.disabled = true;
-  await fetch(`/api/review/${encodeURIComponent(id)}/${b.dataset.act}`, { method: 'POST' });
+  if (b.dataset.act === 'ai') {
+    const note = b.closest('.row').querySelector('[data-ainote]');
+    note.textContent = 'Running AI review (one Meta API call)...';
+    const r = await fetch(`/api/review/${encodeURIComponent(id)}/rerun?ai=1`, { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    note.textContent = j.cached ? 'Saved AI review shown - no new API call made.'
+      : j.ok ? 'AI review complete - result saved; repeats replay it without new calls.'
+      : `AI review withheld (${j.ai_status || j.error || 'error'}) - rules review unchanged.`;
+  } else {
+    await fetch(`/api/review/${encodeURIComponent(id)}/${b.dataset.act}`, { method: 'POST' });
+  }
   await load();
 });
 

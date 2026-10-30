@@ -2,10 +2,10 @@
 // REAL sandbox only - env-configured. No live/real-money endpoints exist here.
 const BASE = process.env.PAYPAL_API_BASE || 'https://api-m.sandbox.paypal.com';
 
-async function token() {
+async function token(fetchImpl = fetch) {
   const id = process.env.PAYPAL_CLIENT_ID, secret = process.env.PAYPAL_CLIENT_SECRET;
   if (!id || !secret) throw new Error('PAYPAL_CLIENT_ID/SECRET not set');
-  const r = await fetch(`${BASE}/v1/oauth2/token`, {
+  const r = await fetchImpl(`${BASE}/v1/oauth2/token`, {
     method: 'POST',
     headers: { 'Authorization': 'Basic ' + Buffer.from(`${id}:${secret}`).toString('base64'),
                'Content-Type': 'application/x-www-form-urlencoded' },
@@ -15,17 +15,17 @@ async function token() {
   return (await r.json()).access_token;
 }
 
-export async function getOrder(orderId) {
-  const t = await token();
-  const r = await fetch(`${BASE}/v2/checkout/orders/${orderId}`, { headers: { Authorization: `Bearer ${t}` } });
+export async function getOrder(orderId, fetchImpl = fetch) {
+  const t = await token(fetchImpl);
+  const r = await fetchImpl(`${BASE}/v2/checkout/orders/${orderId}`, { headers: { Authorization: `Bearer ${t}` } });
   if (!r.ok) throw new Error(`paypal getOrder ${r.status}`);
   return r.json();
 }
 
 // Verify a webhook signature with PayPal (required before trusting events).
-export async function verifyWebhook({ headers, body, webhookId }) {
-  const t = await token();
-  const r = await fetch(`${BASE}/v1/notifications/verify-webhook-signature`, {
+export async function verifyWebhook({ headers, body, webhookId }, fetchImpl = fetch) {
+  const t = await token(fetchImpl);
+  const r = await fetchImpl(`${BASE}/v1/notifications/verify-webhook-signature`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({

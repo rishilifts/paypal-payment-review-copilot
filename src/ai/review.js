@@ -80,10 +80,23 @@ export function validateAiReview(out, facts) {
     if (!known.has(m) && !known.has(parseFloat(m).toFixed(2)) && parseFloat(m) > 2)
       errors.push(`ungrounded figure: ${m}`);
   }
+  // Semantic grounding: a flag is only kept if it re-expresses a rule finding
+  // that is actually TRUE for this payment under the seller's own settings.
+  // Token-level checks above catch invented figures; this catches invented
+  // MEANING (a risk claim no configured rule or observed field supports).
+  const amt = parseFloat(facts.amount || '0');
+  const truths = {
+    above_max: Number.isFinite(b.typical_max_amount) && amt > b.typical_max_amount,
+    outside_markets: !!(facts.country && b.markets?.length && !b.markets.includes(facts.country)),
+    missing_email: !facts.payer_email,
+  };
   const flags = (out.flags || []).filter(f => {
     const s = `${f.signal} ${f.why}`;
     if (FIXTURE_RE.test(s)) return false; // test-data observation, not a seller signal
-    return true;
+    if (/above|exceed|over|larger|typical|limit|maximum|max order|order size/i.test(s)) return truths.above_max;
+    if (/market|country|region|geograph/i.test(s)) return truths.outside_markets;
+    if (/missing|absent|no payer|without.*email/i.test(s)) return truths.missing_email;
+    return false; // claim category we cannot verify from configured rules/observed data
   });
   return { ok: errors.length === 0, errors, flags, summary: (out.summary || '').trim() };
 }
@@ -120,6 +133,10 @@ export async function reviewPayment(payment, baseline) {
   if (!r.ok) throw new Error(`meta api ${r.status}`);
   const j = await r.json();
   const meta = { provider: 'meta', model: j.model || (process.env.META_MODEL || 'muse-spark-1.2'), usage: j.usage || null };
+  // Structured outputs constrain shape, not length: a capped response can still
+  // truncate, so finish_reason is checked before anything is trusted.
+  const finish = j.choices?.[0]?.finish_reason;
+  if (finish === 'length') return { ai_status: 'truncated', flags: [], summary: '', ...meta };
   const text = j.choices?.[0]?.message?.content;
   if (!text) return { ai_status: 'no_content', flags: [], summary: '', ...meta };
   let parsed;

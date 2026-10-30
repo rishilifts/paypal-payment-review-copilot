@@ -44,7 +44,7 @@ async function load() {
   const [cfg, r] = await Promise.all([fetch('/api/config').then(x => x.json()), fetch('/api/payments').then(x => x.json())]);
   if (cfg.mode === 'mock') mockbar.classList.remove('hidden'); else mockbar.classList.add('hidden');
   const c = cfg.config || {};
-  baselineEl.innerHTML = `Your baseline &nbsp;<b>markets ${esc((c.markets || []).join(' · ') || 'not set')}</b> &nbsp;·&nbsp; <b>typical order up to ${esc(c.typical_max_amount)} ${esc(c.currency || '')}</b>`;
+  baselineEl.innerHTML = (cfg.mode === 'mock' ? `Demo baseline (mock settings) &nbsp;` : `Your baseline &nbsp;<b>markets ${esc((c.markets || []).join(' · ') || 'not set')}</b> &nbsp;·&nbsp; <b>typical order up to ${esc(c.typical_max_amount)} ${esc(c.currency || '')}</b>`;
   status.textContent = r.payments.length ? `${r.payments.length} payment(s) in queue` : '';
   list.innerHTML = r.payments.length
     ? r.payments.map(row).join('')

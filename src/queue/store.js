@@ -9,6 +9,7 @@ export class Store {
     mkdirSync(dirname(path), { recursive: true });
     try { this.data = JSON.parse(readFileSync(path, 'utf8')); }
     catch { this.data = { payments: [], reviews: [] }; }
+    this.data.config ||= { markets: ['US', 'IN'], typical_max_amount: 500, currency: 'USD' };
   }
   save() { writeFileSync(this.path, JSON.stringify(this.data, null, 2)); }
   upsertPayment(p) {
@@ -29,4 +30,6 @@ export class Store {
   }
   getReview(paymentId) { return this.data.reviews.find(r => r.payment_id === paymentId); }
   listReviews() { return this.data.reviews; }
+  getConfig() { return this.data.config; }
+  setConfig(c) { this.data.config = { ...this.data.config, ...c }; this.save(); return this.data.config; }
 }

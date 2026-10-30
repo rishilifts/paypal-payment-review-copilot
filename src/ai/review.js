@@ -13,8 +13,8 @@ human's attention. Rules:
 - Suggest concrete manual checks the seller can do.
 Return strict JSON: {"flags":[{"signal":string,"why":string,"suggested_check":string}],"summary":string}`;
 
-export async function reviewPayment(payment) {
-  if ((process.env.AI_PROVIDER || 'mock') === 'mock') return mockReview(payment);
+export async function reviewPayment(payment, baseline) {
+  if ((process.env.AI_PROVIDER || 'mock') === 'mock') return mockReview(payment, baseline);
   const key = process.env.META_API_KEY;
   if (!key) throw new Error('META_API_KEY not set');
   const r = await fetch('https://api.llama.com/v1/chat/completions', {
@@ -36,11 +36,14 @@ export async function reviewPayment(payment) {
   catch { return { flags: [], summary: text.slice(0, 500), parse_fallback: true }; }
 }
 
-function mockReview(payment) {
+function mockReview(payment, baseline) {
+  const b = baseline || { markets: [], typical_max_amount: Infinity };
   const flags = [];
-  if (!payment.payer_email) flags.push({ signal: 'missing payer email', why: 'No payer email present in the payment metadata.', suggested_check: 'Open the order in the PayPal dashboard and confirm the buyer contact.' });
-  if (payment.country && !['IN', 'US'].includes(payment.country)) flags.push({ signal: 'uncommon buyer country', why: `Buyer country ${payment.country} differs from your usual markets.`, suggested_check: 'Confirm the shipping address matches the order details before fulfilling.' });
+  if (!payment.payer_email) flags.push({ signal: 'missing payer email', why: 'No payer email is present in this payment\'s metadata.', suggested_check: 'Open the order in the PayPal dashboard and confirm the buyer contact.' });
+  if (payment.country && b.markets?.length && !b.markets.includes(payment.country))
+    flags.push({ signal: 'outside listed markets', why: `Buyer country ${payment.country} is not in the markets you listed (${b.markets.join(', ')}). This is a mismatch against your own settings, not a fraud verdict.`, suggested_check: 'Confirm the shipping address matches the order details before fulfilling.' });
   const amt = parseFloat(payment.amount || '0');
-  if (amt > 500) flags.push({ signal: 'high amount', why: `Amount ${payment.amount} ${payment.currency} is large relative to typical first orders.`, suggested_check: 'Message the buyer to confirm the order before shipping.' });
-  return { flags, summary: flags.length ? `${flags.length} signal(s) worth a look.` : 'No unusual signals in the metadata provided.', mocked: true };
+  if (Number.isFinite(b.typical_max_amount) && amt > b.typical_max_amount)
+    flags.push({ signal: 'above your typical order size', why: `${payment.amount} ${payment.currency} is above the typical order limit you set (${b.typical_max_amount} ${b.currency || ''}).`, suggested_check: 'Message the buyer to confirm the order before shipping.' });
+  return { flags, summary: flags.length ? `${flags.length} signal(s) vs your settings.` : 'No mismatches against your settings.', mocked: true };
 }

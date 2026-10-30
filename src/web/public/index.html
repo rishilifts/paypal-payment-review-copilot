@@ -7,16 +7,16 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header>
-  <div class="wrap">
-    <h1>Payment Review Copilot</h1>
-    <p class="sub">Sandbox payments, explained. Signals worth your attention - you decide.</p>
-  </div>
+<div id="mockbar" class="mockbar hidden">LOCAL MOCK SAMPLE - no PayPal account connected, AI not connected. Data below is placeholder.</div>
+<header class="wrap">
+  <h1>Payment Review<br>Copilot</h1>
+  <p class="sub">Your sandbox payments, read aloud. The app points, you decide.</p>
+  <p id="baseline" class="baseline"></p>
 </header>
 <main class="wrap">
-  <div id="status" class="status">Loading…</div>
+  <div id="status" class="status"></div>
   <section id="list"></section>
-  <p class="fineprint">Flags are review aids generated from payment metadata. This app never holds, blocks, approves or moves money.</p>
+  <footer class="fineprint">Signals are review aids read from payment metadata and your own settings. This app never holds, blocks, approves or moves money.</footer>
 </main>
 <script src="app.js" type="module"></script>
 </body>

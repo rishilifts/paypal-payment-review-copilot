@@ -42,7 +42,7 @@ const server = http.createServer(async (req, res) => {
       const p = await readBody(req);
       if (!p || !p.id) return send(res, 400, { error: 'payment with id required' });
       store.upsertPayment(p);
-      const review = await reviewPayment(store.getPayment(p.id));
+      const review = await reviewPayment(store.getPayment(p.id), store.getConfig());
       store.setReview(p.id, { ...review, status: 'needs_review' });
       return send(res, 200, { ok: true });
     }
@@ -59,11 +59,14 @@ const server = http.createServer(async (req, res) => {
         const order = await getOrder(orderId);
         const p = normalizePayment(order);
         store.upsertPayment(p);
-        const review = await reviewPayment(p);
+        const review = await reviewPayment(p, store.getConfig());
         store.setReview(p.id, { ...review, status: 'needs_review' });
       }
       return send(res, 200, { ok: true });
     }
+
+    if (url.pathname === '/api/config' && req.method === 'GET')
+      return send(res, 200, { config: store.getConfig(), mode: process.env.AI_PROVIDER || 'mock', paypal: !!(process.env.PAYPAL_CLIENT_ID) });
 
     // Internal review actions ONLY - these never touch the actual PayPal payment.
     const m = url.pathname.match(/^\/api\/review\/([^/]+)\/(mark|clear)$/);

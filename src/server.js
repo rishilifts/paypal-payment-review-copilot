@@ -11,6 +11,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUB = join(__dirname, 'web', 'public');
 const store = new Store(join(__dirname, '..', 'data', 'store.json'));
 const PORT = process.env.PORT || 8787;
+
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+const baselineHash = c => crypto.createHash('sha256').update(JSON.stringify(c || {})).digest('hex').slice(0, 12);
+const USAGE_FILE = new URL('../data/ai-usage.json', import.meta.url).pathname;
+function recordUsage(u) {
+  let d = { calls: 0, prompt_tokens: 0, completion_tokens: 0 };
+  try { d = { ...d, ...JSON.parse(fs.readFileSync(USAGE_FILE, 'utf8')) }; } catch {}
+  d.calls += 1; d.prompt_tokens += u?.prompt_tokens || 0; d.completion_tokens += u?.completion_tokens || 0;
+  fs.writeFileSync(USAGE_FILE, JSON.stringify(d, null, 2));
+  return d;
+}
 const WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID || '';
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
@@ -85,7 +97,29 @@ const server = http.createServer(async (req, res) => {
     if (rm && req.method === 'POST') {
       const p = store.getPayment(rm[1]);
       if (!p) return send(res, 404, { error: 'unknown payment' });
-      const review = await reviewPayment(p, store.getConfig());
+      const cfg = store.getConfig();
+      if (url.searchParams.get('ai') === '1') {
+        // Explicit, cached real-AI review: at most one API call per (payment, baseline).
+        const bh = baselineHash(cfg);
+        const cached = store.getAiReview(p.id);
+        if (cached && cached.baseline_hash === bh)
+          return send(res, 200, { ok: true, ai: cached, cached: true });
+        if (!process.env.META_API_KEY) return send(res, 400, { error: 'META_API_KEY not set' });
+        const savedProvider = process.env.AI_PROVIDER;
+        process.env.AI_PROVIDER = 'meta';
+        let review;
+        try { review = await reviewPayment(p, cfg); }
+        catch (e) { return send(res, 502, { error: `AI review failed: ${e.message}` }); }
+        finally { process.env.AI_PROVIDER = savedProvider; }
+        const usage = recordUsage(review.usage);
+        const ai = { ...review, baseline_hash: bh, ran_at: new Date().toISOString() };
+        store.setAiReview(p.id, ai);
+        // AI review replaces the visible review only when it parsed successfully.
+        if (!review.parse_fallback)
+          store.setReview(p.id, { ...review, status: (review.flags || []).length ? 'needs_review' : 'no_signals' });
+        return send(res, 200, { ok: true, ai, cached: false, usage });
+      }
+      const review = await reviewPayment(p, cfg);
       store.setReview(p.id, { ...review, status: (review.flags || []).length ? 'needs_review' : 'no_signals' });
       return send(res, 200, { ok: true });
     }

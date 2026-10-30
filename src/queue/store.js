@@ -29,6 +29,13 @@ export class Store {
     return rec;
   }
   getReview(paymentId) { return this.data.reviews.find(r => r.payment_id === paymentId); }
+  setAiReview(paymentId, ai) {
+    this.data.aiReviews ||= [];
+    this.data.aiReviews = this.data.aiReviews.filter(r => r.payment_id !== paymentId);
+    this.data.aiReviews.push({ payment_id: paymentId, ...ai });
+    this.save();
+  }
+  getAiReview(paymentId) { return (this.data.aiReviews || []).find(r => r.payment_id === paymentId); }
   listReviews() { return this.data.reviews; }
   getConfig() { return this.data.config; }
   setConfig(c) { this.data.config = { ...this.data.config, ...c }; this.save(); return this.data.config; }

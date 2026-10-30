@@ -29,14 +29,16 @@ export async function reviewPayment(payment, baseline) {
         { role: 'system', content: SYSTEM },
         { role: 'user', content: JSON.stringify({ payment, seller_baseline: baseline || null }, null, 2) }
       ],
-      temperature: 0.2
+      temperature: 0.2,
+      max_tokens: 512
     })
   });
   if (!r.ok) throw new Error(`meta api ${r.status}`);
   const j = await r.json();
   const text = j.choices?.[0]?.message?.content || '{}';
-  try { return JSON.parse(text); }
-  catch { return { flags: [], summary: text.slice(0, 500), parse_fallback: true }; }
+  const meta = { provider: 'meta', model: j.model || (process.env.META_MODEL || 'Llama-4-Maverick-17B-128E-Instruct-FP8'), usage: j.usage || null };
+  try { return { ...JSON.parse(text), ...meta }; }
+  catch { return { flags: [], summary: text.slice(0, 500), parse_fallback: true, ...meta }; }
 }
 
 function mockReview(payment, baseline) {

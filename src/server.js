@@ -112,9 +112,12 @@ const server = http.createServer(async (req, res) => {
         catch (e) { return send(res, 502, { error: `AI review failed: ${e.message}` }); }
         finally { process.env.AI_PROVIDER = savedProvider; }
         const usage = recordUsage(review.usage);
+        const hasContent = typeof review.summary === 'string' && review.summary.length > 0;
         const ai = { ...review, baseline_hash: bh, ran_at: new Date().toISOString() };
+        if (!hasContent)
+          return send(res, 200, { ok: false, ai_status: 'no_content', usage, note: 'model returned no content within the token cap; rules review unchanged, nothing cached' });
         store.setAiReview(p.id, ai);
-        // AI review replaces the visible review only when it parsed successfully.
+        // AI review replaces the visible review only when it returned real content.
         if (!review.parse_fallback)
           store.setReview(p.id, { ...review, status: (review.flags || []).length ? 'needs_review' : 'no_signals' });
         return send(res, 200, { ok: true, ai, cached: false, usage });

@@ -20,23 +20,24 @@ export async function reviewPayment(payment, baseline) {
   if ((process.env.AI_PROVIDER || 'mock') === 'mock') return mockReview(payment, baseline);
   const key = process.env.META_API_KEY;
   if (!key) throw new Error('META_API_KEY not set');
-  const r = await fetch('https://api.llama.com/v1/chat/completions', {
+  const r = await fetch(`${process.env.META_BASE_URL || 'https://api.meta.ai'}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: process.env.META_MODEL || 'Llama-4-Maverick-17B-128E-Instruct-FP8',
+      model: process.env.META_MODEL || 'muse-spark-1.2',
       messages: [
         { role: 'system', content: SYSTEM },
         { role: 'user', content: JSON.stringify({ payment, seller_baseline: baseline || null }, null, 2) }
       ],
       temperature: 0.2,
-      max_tokens: 512
+      max_tokens: 1024,
+      reasoning_effort: 'low'
     })
   });
   if (!r.ok) throw new Error(`meta api ${r.status}`);
   const j = await r.json();
   const text = j.choices?.[0]?.message?.content || '{}';
-  const meta = { provider: 'meta', model: j.model || (process.env.META_MODEL || 'Llama-4-Maverick-17B-128E-Instruct-FP8'), usage: j.usage || null };
+  const meta = { provider: 'meta', model: j.model || (process.env.META_MODEL || 'muse-spark-1.2'), usage: j.usage || null };
   try { return { ...JSON.parse(text), ...meta }; }
   catch { return { flags: [], summary: text.slice(0, 500), parse_fallback: true, ...meta }; }
 }

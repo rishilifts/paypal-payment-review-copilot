@@ -43,3 +43,6 @@ button:disabled { opacity: 0.4; cursor: default; }
 .settings input { background: #111; border: 1px solid #2a2a2a; color: #ededed; font: inherit; font-size: 15px; padding: 10px 12px; border-radius: 0; }
 .settings input:focus { outline: 1px solid #f5b759; }
 .settings button[type=submit] { justify-self: start; background: none; border: none; border-bottom: 2px solid #f5b759; color: #f5b759; font-size: 14px; font-weight: 650; padding: 0 0 2px; cursor: pointer; }
+
+.aitag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #1b2a4a; color: #7fb2ff; border: 1px solid #2c4a7f; }
+.rulestag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #222; color: #999; border: 1px solid #333; }

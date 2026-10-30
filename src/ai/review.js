@@ -20,7 +20,7 @@ Rules:
 - Never claim a payment IS fraudulent. Never give a numeric probability.
 - payer_email and payer_name here are KNOWN SANDBOX TEST FIXTURES, not real buyers: never mention them as signals. Test data is not evidence of fraud.
 - A mismatch with the seller's own settings (markets list, typical order limit) is a valid signal. Never call any country, name, or email provider suspicious by itself.
-- At most 3 flags. Each string under 140 characters. summary under 30 words.
+- At most 3 flags. Every flag MUST have a concrete why (the observed fact) and suggested_check (a manual action). Each string 20-140 characters. summary under 30 words.
 Return JSON matching the required schema.`;
 
 const SCHEMA = {
@@ -36,9 +36,9 @@ const SCHEMA = {
           items: {
             type: 'object',
             properties: {
-              signal: { type: 'string' },
-              why: { type: 'string' },
-              suggested_check: { type: 'string' },
+              signal: { type: 'string', minLength: 4 },
+              why: { type: 'string', minLength: 20 },
+              suggested_check: { type: 'string', minLength: 20 },
             },
             required: ['signal', 'why', 'suggested_check'],
             additionalProperties: false,
@@ -90,7 +90,10 @@ export function validateAiReview(out, facts) {
     outside_markets: !!(facts.country && b.markets?.length && !b.markets.includes(facts.country)),
     missing_email: !facts.payer_email,
   };
+  const thin = (out.flags || []).some(f => (f.why || '').trim().length < 20 || (f.suggested_check || '').trim().length < 20);
+  if (thin && (out.flags || []).length) errors.push('flag missing concrete why/suggested_check');
   const flags = (out.flags || []).filter(f => {
+    if ((f.why || '').trim().length < 20 || (f.suggested_check || '').trim().length < 20) return false;
     const s = `${f.signal} ${f.why}`;
     if (FIXTURE_RE.test(s)) return false; // test-data observation, not a seller signal
     if (/above|exceed|over|larger|typical|limit|maximum|max order|order size/i.test(s)) return truths.above_max;

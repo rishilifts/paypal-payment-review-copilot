@@ -112,11 +112,14 @@ const server = http.createServer(async (req, res) => {
         let review;
         try { review = await reviewPayment(p, cfg); }
         catch (e) { return send(res, 502, { error: `AI review failed: ${e.message}` }); }
-        finally { process.env.AI_PROVIDER = savedProvider; }
+        finally { if (savedProvider === undefined) delete process.env.AI_PROVIDER; else process.env.AI_PROVIDER = savedProvider; }
         const usage = recordUsage(review.usage);
         const ai = { ...review, baseline_hash: bh, ran_at: new Date().toISOString() };
-        // Persist every outcome, including failures, with usage recorded above.
-        store.setAiReview(p.id, ai);
+        // Persist every outcome, including failures, with usage recorded above -
+        // but never overwrite a cached SUCCESS with a new failure.
+        const prev = store.getAiReview(p.id);
+        if (!(review.ai_status && prev && !prev.ai_status && prev.summary))
+          store.setAiReview(p.id, ai);
         if (review.ai_status)
           return send(res, 200, { ok: false, ai_status: review.ai_status, ai, cached: false, usage, note: 'AI attempt failed validation or returned no usable content; rules review unchanged. Failure is cached; retry needs an explicit force=1.' });
         // Validated AI review replaces the visible review.

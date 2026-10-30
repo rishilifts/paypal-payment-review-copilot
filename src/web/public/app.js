@@ -32,6 +32,7 @@ function row(p) {
     <div class="top">
       <span class="amount">${esc(p.amount)} ${esc(p.currency)}</span>
       <span class="state ${esc(st)}">${stateText[st] || esc(st)}</span>
+      ${r.provider === 'meta' ? `<span class="aitag">AI review - Meta ${esc(r.model || 'muse-spark')}</span>` : r.mocked ? '<span class="rulestag">rules-based</span>' : ''}
     </div>
     <div class="meta">${esc(p.payer_name || 'Buyer')} · ${esc(p.payer_email || 'no email')} · ${esc(p.country || 'n/a')} · ${fmtTime(p.created)} · ${esc(p.status || '')}</div>
     ${flags ? `<div class="flags">${flags}</div>` : (st === 'no_signals' ? '<div class="clean">Nothing here conflicts with your settings.</div>' : '')}
@@ -43,7 +44,7 @@ function row(p) {
 async function load() {
   const [cfg, r] = await Promise.all([fetch('/api/config').then(x => x.json()), fetch('/api/payments').then(x => x.json())]);
   if (cfg.mode === 'mock' && cfg.paypal) {
-    mockbar.textContent = 'SANDBOX MODE - payments below are real PayPal sandbox test payments (no real money). Review text is rules-based; AI review not connected yet.';
+    mockbar.textContent = 'SANDBOX MODE - real PayPal sandbox test payments, no real money. Reviews are rules-based by default; AI-assisted review (Meta Muse Spark) runs only on demand per payment.';
     mockbar.classList.remove('hidden');
   } else if (cfg.mode === 'mock') {
     mockbar.textContent = 'LOCAL MOCK SAMPLE - no PayPal account connected, AI not connected. Data below is placeholder.';

@@ -11,6 +11,9 @@ human's attention. Rules:
 - Describe only what the data shows (mismatches, missing fields, unusual patterns).
 - Never claim a payment IS fraudulent. Never give a numeric probability.
 - Suggest concrete manual checks the seller can do.
+Compare the payment ONLY against the seller baseline provided in the input
+(markets list, typical order limit). A mismatch with the seller's own settings
+is a signal; never call any country, name or email provider suspicious by itself.
 Return strict JSON: {"flags":[{"signal":string,"why":string,"suggested_check":string}],"summary":string}`;
 
 export async function reviewPayment(payment, baseline) {
@@ -24,7 +27,7 @@ export async function reviewPayment(payment, baseline) {
       model: process.env.META_MODEL || 'Llama-4-Maverick-17B-128E-Instruct-FP8',
       messages: [
         { role: 'system', content: SYSTEM },
-        { role: 'user', content: JSON.stringify(payment, null, 2) }
+        { role: 'user', content: JSON.stringify({ payment, seller_baseline: baseline || null }, null, 2) }
       ],
       temperature: 0.2
     })

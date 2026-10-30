@@ -42,7 +42,13 @@ function row(p) {
 
 async function load() {
   const [cfg, r] = await Promise.all([fetch('/api/config').then(x => x.json()), fetch('/api/payments').then(x => x.json())]);
-  if (cfg.mode === 'mock') mockbar.classList.remove('hidden'); else mockbar.classList.add('hidden');
+  if (cfg.mode === 'mock' && cfg.paypal) {
+    mockbar.textContent = 'SANDBOX MODE - payments below are real PayPal sandbox test payments (no real money). Review text is rules-based; AI review not connected yet.';
+    mockbar.classList.remove('hidden');
+  } else if (cfg.mode === 'mock') {
+    mockbar.textContent = 'LOCAL MOCK SAMPLE - no PayPal account connected, AI not connected. Data below is placeholder.';
+    mockbar.classList.remove('hidden');
+  } else mockbar.classList.add('hidden');
   const c = cfg.config || {};
   const baseLabel = cfg.mode === 'mock' ? 'Demo baseline (mock settings)' : 'Your baseline';
   document.getElementById('f-markets').value = (c.markets || []).join(', ');

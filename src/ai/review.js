@@ -4,22 +4,105 @@
 //
 // META_API_KEY is read from env at call time. Until credit use is confirmed,
 // run with AI_PROVIDER=mock to exercise the pipeline without API calls.
+//
+// Hosted route (verified 30 Oct against Meta Model API docs + live responses):
+//   POST https://api.meta.ai/v1/chat/completions, model muse-spark-1.2,
+//   reasoning_effort "minimal" (docs: shortest reasoning pass; "none" is
+//   rejected HTTP 400 on Muse Spark), max_completion_tokens bounds output
+//   spend, response_format json_schema forces parseable output.
+// Prompt design follows the validated TraceMint pattern: small prompt,
+// ONLY-these-facts instruction, then offline validation of every figure
+// and identifier in the model's output before it is shown.
 
-const SYSTEM = `You are a payment review assistant for a small online seller.
-Given one PayPal sandbox payment's metadata, list observable signals worth a
-human's attention. Rules:
-- Describe only what the data shows (mismatches, missing fields, unusual patterns).
+const SYSTEM = `You are a payment review assistant for a small online seller. Given one payment's metadata and the seller's own review settings, list observable signals worth a human's attention.
+Rules:
+- Use ONLY the facts in the input JSON. Never invent IDs, amounts, or settings.
 - Never claim a payment IS fraudulent. Never give a numeric probability.
-- Suggest concrete manual checks the seller can do.
-Compare the payment ONLY against the seller baseline provided in the input
-(markets list, typical order limit). A mismatch with the seller's own settings
-is a signal; never call any country, name or email provider suspicious by itself.
-Return strict JSON: {"flags":[{"signal":string,"why":string,"suggested_check":string}],"summary":string}`;
+- payer_email and payer_name here are KNOWN SANDBOX TEST FIXTURES, not real buyers: never mention them as signals. Test data is not evidence of fraud.
+- A mismatch with the seller's own settings (markets list, typical order limit) is a valid signal. Never call any country, name, or email provider suspicious by itself.
+- At most 3 flags. Each string under 140 characters. summary under 30 words.
+Return JSON matching the required schema.`;
+
+const SCHEMA = {
+  type: 'json_schema',
+  json_schema: {
+    name: 'payment_review',
+    strict: true,
+    schema: {
+      type: 'object',
+      properties: {
+        flags: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              signal: { type: 'string' },
+              why: { type: 'string' },
+              suggested_check: { type: 'string' },
+            },
+            required: ['signal', 'why', 'suggested_check'],
+            additionalProperties: false,
+          },
+        },
+        summary: { type: 'string' },
+      },
+      required: ['flags', 'summary'],
+      additionalProperties: false,
+    },
+  },
+};
+
+// Known sandbox fixture markers. A model observation about these is test-data
+// detection, never a seller risk signal - strip it before display.
+const FIXTURE_RE = /example\.com|\bsb-|john doe|sandbox|fixture|test account|test data/i;
+
+// Offline grounding check, same idea as TraceMint's validateDigest: every
+// number and ID-like token in the output must exist in the input facts.
+export function validateAiReview(out, facts) {
+  const known = new Set();
+  const add = (v) => { if (v !== undefined && v !== null) known.add(String(v)); };
+  add(facts.amount); add(parseFloat(facts.amount || '0').toFixed(2));
+  add(facts.currency); add(facts.order_id); add(facts.id); add(facts.country); add(facts.status);
+  const b = facts.seller_baseline || {};
+  add(b.typical_max_amount); add(Number(b.typical_max_amount).toFixed(2)); add(b.currency);
+  for (const m of b.markets || []) add(m);
+
+  const errors = [];
+  let text = [out.summary || '', ...(out.flags || []).flatMap(f => [f.signal, f.why, f.suggested_check])].join(' ');
+  // every ID-like token (13+ alnum) must be a known ID; then strip known IDs
+  // so their digits are not misread as figures below
+  for (const m of text.match(/\b[A-Z0-9]{13,}\b/g) || []) {
+    if (!known.has(m)) errors.push(`ungrounded id: ${m}`);
+  }
+  for (const k of known) if (k.length >= 13) text = text.split(k).join(' ');
+  // every figure quoted must be a known fact (tiny enumerations like "3 flags" exempt)
+  for (const m of text.match(/(?<![A-Z0-9.])\d+(?:\.\d{1,2})?(?!\d)/g) || []) {
+    if (!known.has(m) && !known.has(parseFloat(m).toFixed(2)) && parseFloat(m) > 2)
+      errors.push(`ungrounded figure: ${m}`);
+  }
+  const flags = (out.flags || []).filter(f => {
+    const s = `${f.signal} ${f.why}`;
+    if (FIXTURE_RE.test(s)) return false; // test-data observation, not a seller signal
+    return true;
+  });
+  return { ok: errors.length === 0, errors, flags, summary: (out.summary || '').trim() };
+}
+
+function compactFacts(payment, baseline) {
+  return {
+    id: payment.id, order_id: payment.order_id, status: payment.status,
+    amount: payment.amount, currency: payment.currency, country: payment.country,
+    payer_email: payment.payer_email, payer_name: payment.payer_name,
+    created: payment.created,
+    seller_baseline: baseline || null,
+  };
+}
 
 export async function reviewPayment(payment, baseline) {
   if ((process.env.AI_PROVIDER || 'mock') === 'mock') return mockReview(payment, baseline);
   const key = process.env.META_API_KEY;
   if (!key) throw new Error('META_API_KEY not set');
+  const facts = compactFacts(payment, baseline);
   const r = await fetch(`${process.env.META_BASE_URL || 'https://api.meta.ai'}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
@@ -27,19 +110,24 @@ export async function reviewPayment(payment, baseline) {
       model: process.env.META_MODEL || 'muse-spark-1.2',
       messages: [
         { role: 'system', content: SYSTEM },
-        { role: 'user', content: JSON.stringify({ payment, seller_baseline: baseline || null }, null, 2) }
+        { role: 'user', content: JSON.stringify(facts) }
       ],
-      temperature: 0.2,
-      max_tokens: 1024,
-      reasoning_effort: 'low'
+      max_completion_tokens: parseInt(process.env.META_MAX_TOKENS || '1024', 10),
+      reasoning_effort: 'minimal',
+      response_format: SCHEMA,
     })
   });
   if (!r.ok) throw new Error(`meta api ${r.status}`);
   const j = await r.json();
-  const text = j.choices?.[0]?.message?.content || '{}';
   const meta = { provider: 'meta', model: j.model || (process.env.META_MODEL || 'muse-spark-1.2'), usage: j.usage || null };
-  try { return { ...JSON.parse(text), ...meta }; }
-  catch { return { flags: [], summary: text.slice(0, 500), parse_fallback: true, ...meta }; }
+  const text = j.choices?.[0]?.message?.content;
+  if (!text) return { ai_status: 'no_content', flags: [], summary: '', ...meta };
+  let parsed;
+  try { parsed = JSON.parse(text); }
+  catch { return { ai_status: 'unparseable', flags: [], summary: '', ...meta }; }
+  const v = validateAiReview(parsed, facts);
+  if (!v.ok) return { ai_status: 'invalid', validation_errors: v.errors, flags: [], summary: '', ...meta };
+  return { flags: v.flags, summary: v.summary, ...meta };
 }
 
 function mockReview(payment, baseline) {

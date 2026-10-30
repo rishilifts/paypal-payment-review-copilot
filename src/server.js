@@ -99,11 +99,13 @@ const server = http.createServer(async (req, res) => {
       if (!p) return send(res, 404, { error: 'unknown payment' });
       const cfg = store.getConfig();
       if (url.searchParams.get('ai') === '1') {
-        // Explicit, cached real-AI review: at most one API call per (payment, baseline).
+        // Explicit, cached real-AI review. Successes AND failures are cached per
+        // (payment, baseline) so a reload or repeat click never silently re-calls
+        // the API. A cached failure can only be bypassed with an explicit force=1.
         const bh = baselineHash(cfg);
         const cached = store.getAiReview(p.id);
-        if (cached && cached.baseline_hash === bh)
-          return send(res, 200, { ok: true, ai: cached, cached: true });
+        if (cached && cached.baseline_hash === bh && url.searchParams.get('force') !== '1')
+          return send(res, 200, { ok: !cached.ai_status, ai: cached, cached: true });
         if (!process.env.META_API_KEY) return send(res, 400, { error: 'META_API_KEY not set' });
         const savedProvider = process.env.AI_PROVIDER;
         process.env.AI_PROVIDER = 'meta';
@@ -112,14 +114,13 @@ const server = http.createServer(async (req, res) => {
         catch (e) { return send(res, 502, { error: `AI review failed: ${e.message}` }); }
         finally { process.env.AI_PROVIDER = savedProvider; }
         const usage = recordUsage(review.usage);
-        const hasContent = typeof review.summary === 'string' && review.summary.length > 0;
         const ai = { ...review, baseline_hash: bh, ran_at: new Date().toISOString() };
-        if (!hasContent)
-          return send(res, 200, { ok: false, ai_status: 'no_content', usage, note: 'model returned no content within the token cap; rules review unchanged, nothing cached' });
+        // Persist every outcome, including failures, with usage recorded above.
         store.setAiReview(p.id, ai);
-        // AI review replaces the visible review only when it returned real content.
-        if (!review.parse_fallback)
-          store.setReview(p.id, { ...review, status: (review.flags || []).length ? 'needs_review' : 'no_signals' });
+        if (review.ai_status)
+          return send(res, 200, { ok: false, ai_status: review.ai_status, ai, cached: false, usage, note: 'AI attempt failed validation or returned no usable content; rules review unchanged. Failure is cached; retry needs an explicit force=1.' });
+        // Validated AI review replaces the visible review.
+        store.setReview(p.id, { ...review, status: (review.flags || []).length ? 'needs_review' : 'no_signals' });
         return send(res, 200, { ok: true, ai, cached: false, usage });
       }
       const review = await reviewPayment(p, cfg);

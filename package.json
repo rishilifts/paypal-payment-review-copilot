@@ -1,0 +1,11 @@
+{
+  "name": "paypal-payment-review-copilot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI review copilot for PayPal sandbox payments: explainable risk flags, human-in-the-loop review queue.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js --dev"
+  }
+}

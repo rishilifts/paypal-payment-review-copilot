@@ -43,7 +43,7 @@ const server = http.createServer(async (req, res) => {
       if (!p || !p.id) return send(res, 400, { error: 'payment with id required' });
       store.upsertPayment(p);
       const review = await reviewPayment(store.getPayment(p.id), store.getConfig());
-      store.setReview(p.id, { ...review, status: 'needs_review' });
+      store.setReview(p.id, { ...review, status: (review.flags || []).length ? 'needs_review' : 'no_signals' });
       return send(res, 200, { ok: true });
     }
 
@@ -60,7 +60,7 @@ const server = http.createServer(async (req, res) => {
         const p = normalizePayment(order);
         store.upsertPayment(p);
         const review = await reviewPayment(p, store.getConfig());
-        store.setReview(p.id, { ...review, status: 'needs_review' });
+        store.setReview(p.id, { ...review, status: (review.flags || []).length ? 'needs_review' : 'no_signals' });
       }
       return send(res, 200, { ok: true });
     }

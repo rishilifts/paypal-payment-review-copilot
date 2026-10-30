@@ -22,19 +22,26 @@ async function token() {
   return (await r.json()).access_token;
 }
 
-async function create(amount) {
+async function create(amount, currency) {
   const t = await token();
   const r = await fetch(`${BASE}/v2/checkout/orders`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       intent: 'CAPTURE',
-      purchase_units: [{ amount: { currency_code: 'USD', value: String(amount) } }]
+      purchase_units: [{ amount: { currency_code: currency || 'USD', value: String(amount) } }],
+      payment_source: { paypal: { experience_context: {
+        brand_name: 'Payment Review Copilot demo',
+        shipping_preference: 'NO_SHIPPING',
+        user_action: 'PAY_NOW',
+        return_url: 'https://example.com/return',
+        cancel_url: 'https://example.com/cancel'
+      } } }
     })
   });
   const j = await r.json();
   if (!r.ok) throw new Error(`create ${r.status}: ${JSON.stringify(j)}`);
-  const approve = j.links?.find(l => l.rel === 'approve')?.href;
+  const approve = (j.links?.find(l => l.rel === 'payer-action') || j.links?.find(l => l.rel === 'approve'))?.href;
   console.log(`ORDER_ID=${j.id}`);
   console.log(`BUYER_APPROVAL_LINK=${approve}`);
   console.log('Approve with a sandbox BUYER account, then run: capture ' + j.id);
@@ -54,7 +61,7 @@ async function capture(orderId) {
   console.log(`captured ${p.id} -> intake ${ir.status}`);
 }
 
-const [, , cmd, arg] = process.argv;
-if (cmd === 'create') await create(arg || '10.00');
+const [, , cmd, arg, arg2] = process.argv;
+if (cmd === 'create') await create(arg || '10.00', arg2);
 else if (cmd === 'capture') await capture(arg);
-else console.log('usage: sandbox-flow.js create <amount> | capture <orderId>');
+else console.log('usage: sandbox-flow.js create <amount> [currency] | capture <orderId>');

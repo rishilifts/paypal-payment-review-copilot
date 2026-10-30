@@ -30,7 +30,6 @@ header { padding: 52px 0 8px; text-align: center; }
 .flag .signal { font-weight: 600; font-size: 14px; }
 .flag .why { color: #4b5563; font-size: 13.5px; margin-top: 2px; }
 .flag .check { color: #9aa1ac; font-size: 12.5px; margin-top: 3px; }
-.signalcode { font-size: 11px; color: #b6bcc6; margin-top: 2px; font-family: ui-monospace, monospace; }
 .clean { color: #9aa1ac; font-size: 13.5px; margin-top: 10px; }
 .summary { color: #4b5563; font-size: 12.5px; margin-top: 6px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 

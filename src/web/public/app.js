@@ -14,15 +14,16 @@ function fmtTime(iso) {
   return isNaN(d) ? iso : d.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
+const humanize = s => String(s ?? '').replace(/typical_max_amount/g, 'typical order size').replace(/\b[A-Za-z]+_[A-Za-z_]+\b/g, m => m.replace(/_/g, ' '));
 function row(p) {
   const r = p.review || {};
   const hasFlags = (r.flags || []).length > 0;
   const st = r.status && r.status !== 'needs_review' ? r.status : (hasFlags ? 'needs_review' : 'no_signals');
   const flags = (r.flags || []).map(f => `
     <div class="flag">
-      <div class="signal">${esc(signalLabel(f.signal))}</div>${signalText[f.signal] ? `<div class="signalcode">${esc(f.signal)}</div>` : ''}
-      <div class="why">${esc(f.why)}</div>
-      ${f.suggested_check ? `<div class="check">Check: ${esc(f.suggested_check)}</div>` : ''}
+      <div class="signal">${esc(signalLabel(f.signal))}</div>
+      <div class="why">${esc(humanize(f.why))}</div>
+      ${f.suggested_check ? `<div class="check">Check: ${esc(humanize(f.suggested_check))}</div>` : ''}
     </div>`).join('');
   const aiBtn = p.ai && !p.ai.ai_status
     ? `<button class="airun" data-act="ai">AI review saved - replay (no new call)</button>`
@@ -41,7 +42,7 @@ function row(p) {
     </div>
     <div class="meta">${esc(p.payer_name || 'Buyer')} · ${esc(p.payer_email || 'no email')} · ${esc(p.country || 'n/a')} · ${fmtTime(p.created)} · ${esc(p.status || '')}</div>
     ${flags ? `<div class="flags">${flags}</div>` : (st === 'no_signals' ? '<div class="clean">Nothing here conflicts with your settings.</div>' : '')}
-    ${r.summary && hasFlags ? `<div class="summary">${esc(r.summary)}</div>` : ''}
+    ${r.summary && hasFlags ? `<div class="summary">${esc(humanize(r.summary))}</div>` : ''}
     ${actions}
     <div class="actions">${aiBtn}</div>
     <div class="ainote" data-ainote></div>
@@ -58,7 +59,7 @@ async function load() {
     mockbar.classList.remove('hidden');
   } else mockbar.classList.add('hidden');
   const c = cfg.config || {};
-  const baseLabel = cfg.mode === 'mock' ? 'Demo baseline (mock settings)' : 'Your baseline';
+  const baseLabel = 'Demo baseline (example settings)';
   document.getElementById('f-markets').value = (c.markets || []).join(', ');
   document.getElementById('f-max').value = c.typical_max_amount ?? '';
   baselineEl.innerHTML = `${baseLabel} &nbsp;<b>markets ${esc((c.markets || []).join(' · ') || 'not set')}</b> &nbsp;·&nbsp; <b>typical order up to ${esc(c.typical_max_amount)} ${esc(c.currency || '')}</b>`;

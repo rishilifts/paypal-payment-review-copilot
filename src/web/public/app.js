@@ -45,6 +45,8 @@ async function load() {
   if (cfg.mode === 'mock') mockbar.classList.remove('hidden'); else mockbar.classList.add('hidden');
   const c = cfg.config || {};
   const baseLabel = cfg.mode === 'mock' ? 'Demo baseline (mock settings)' : 'Your baseline';
+  document.getElementById('f-markets').value = (c.markets || []).join(', ');
+  document.getElementById('f-max').value = c.typical_max_amount ?? '';
   baselineEl.innerHTML = `${baseLabel} &nbsp;<b>markets ${esc((c.markets || []).join(' · ') || 'not set')}</b> &nbsp;·&nbsp; <b>typical order up to ${esc(c.typical_max_amount)} ${esc(c.currency || '')}</b>`;
   status.textContent = r.payments.length ? `${r.payments.length} payment(s) in queue` : '';
   list.innerHTML = r.payments.length
@@ -59,6 +61,29 @@ list.addEventListener('click', async e => {
   b.disabled = true;
   await fetch(`/api/review/${encodeURIComponent(id)}/${b.dataset.act}`, { method: 'POST' });
   await load();
+});
+
+document.getElementById('settingsform').addEventListener('submit', async e => {
+  e.preventDefault();
+  const markets = document.getElementById('f-markets').value.split(',').map(x => x.trim()).filter(Boolean);
+  const typical_max_amount = parseFloat(document.getElementById('f-max').value);
+  const r = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ markets, typical_max_amount }) });
+  const msg = document.getElementById('settingsmsg');
+  if (r.ok) {
+    const cfg = await fetch('/api/config').then(x => x.json());
+    if (cfg.mode === 'mock') {
+      msg.textContent = 'Saved. Re-checking queue...';
+      const ps = await fetch('/api/payments').then(x => x.json());
+      for (const p of ps.payments) await fetch(`/api/review/${encodeURIComponent(p.id)}/rerun`, { method: 'POST' });
+      msg.textContent = 'Saved.';
+      await load();
+    } else {
+      msg.textContent = 'Saved. New payments use these settings.';
+      await load();
+    }
+  } else {
+    msg.textContent = (await r.json()).error || 'Invalid settings';
+  }
 });
 
 load();

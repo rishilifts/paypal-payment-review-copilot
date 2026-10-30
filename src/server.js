@@ -68,6 +68,28 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/config' && req.method === 'GET')
       return send(res, 200, { config: store.getConfig(), mode: process.env.AI_PROVIDER || 'mock', paypal: !!(process.env.PAYPAL_CLIENT_ID) });
 
+    if (url.pathname === '/api/config' && req.method === 'POST') {
+      const b = await readBody(req);
+      if (!b) return send(res, 400, { error: 'bad json' });
+      const cfg = {};
+      if (Array.isArray(b.markets)) cfg.markets = b.markets.map(x => String(x).trim().toUpperCase()).filter(x => /^[A-Z]{2}$/.test(x));
+      if (b.typical_max_amount !== undefined) {
+        const n = parseFloat(b.typical_max_amount);
+        if (!Number.isFinite(n) || n <= 0 || n > 1000000) return send(res, 400, { error: 'typical_max_amount must be a positive number' });
+        cfg.typical_max_amount = n;
+      }
+      return send(res, 200, { config: store.setConfig(cfg) });
+    }
+
+    const rm = url.pathname.match(/^\/api\/review\/([^/]+)\/rerun$/);
+    if (rm && req.method === 'POST') {
+      const p = store.getPayment(rm[1]);
+      if (!p) return send(res, 404, { error: 'unknown payment' });
+      const review = await reviewPayment(p, store.getConfig());
+      store.setReview(p.id, { ...review, status: (review.flags || []).length ? 'needs_review' : 'no_signals' });
+      return send(res, 200, { ok: true });
+    }
+
     // Internal review actions ONLY - these never touch the actual PayPal payment.
     const m = url.pathname.match(/^\/api\/review\/([^/]+)\/(mark|clear)$/);
     if (m && req.method === 'POST') {

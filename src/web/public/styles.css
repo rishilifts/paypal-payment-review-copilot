@@ -34,3 +34,12 @@ button.clear { color: #6fdc8c; border-bottom-color: #6fdc8c; }
 button:disabled { opacity: 0.4; cursor: default; }
 .fineprint { color: #555; font-size: 12px; padding: 28px 0 48px; }
 .empty { color: #8b8b8b; padding: 48px 0; border-top: 1px solid #1c1c1c; }
+
+.settings { margin-top: 18px; }
+.settings summary { color: #bdbdbd; font-size: 14px; font-weight: 600; cursor: pointer; }
+.settings form { margin-top: 14px; display: grid; gap: 14px; max-width: 420px; padding-bottom: 8px; }
+.settings label { display: grid; gap: 6px; font-size: 13px; color: #bdbdbd; }
+.settings .hint { color: #6b6b6b; font-size: 12px; font-weight: 400; }
+.settings input { background: #111; border: 1px solid #2a2a2a; color: #ededed; font: inherit; font-size: 15px; padding: 10px 12px; border-radius: 0; }
+.settings input:focus { outline: 1px solid #f5b759; }
+.settings button[type=submit] { justify-self: start; background: none; border: none; border-bottom: 2px solid #f5b759; color: #f5b759; font-size: 14px; font-weight: 650; padding: 0 0 2px; cursor: pointer; }

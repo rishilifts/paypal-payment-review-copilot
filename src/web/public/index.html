@@ -12,6 +12,19 @@
   <h1>Payment Review<br>Copilot</h1>
   <p class="sub">Your sandbox payments, explained. The app points, you decide.</p>
   <p id="baseline" class="baseline"></p>
+  <details id="settings" class="settings">
+    <summary>Your review settings</summary>
+    <form id="settingsform">
+      <label>Markets you sell to <span class="hint">2-letter country codes, comma separated</span>
+        <input id="f-markets" type="text" placeholder="US, IN">
+      </label>
+      <label>Typical order up to <span class="hint">in your currency</span>
+        <input id="f-max" type="number" min="1" step="1" placeholder="500">
+      </label>
+      <button type="submit">Save settings</button>
+      <span id="settingsmsg" class="hint"></span>
+    </form>
+  </details>
 </header>
 <main class="wrap">
   <div id="status" class="status"></div>

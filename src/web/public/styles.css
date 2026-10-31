@@ -77,3 +77,10 @@ button.link:disabled { opacity: 0.4; cursor: default; text-decoration: none; }
 
 /* check view: hide header extras, keep brand only */
 body.on-check #baseline, body.on-check .settings { display: none; }
+
+/* Cat motion: subtle blink + gentle tail sway, nothing else moves */
+.cat .eyes { transform-box: fill-box; transform-origin: center; animation: catblink 4.6s infinite; }
+@keyframes catblink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.12); } }
+.cat .tail { transform-box: fill-box; transform-origin: 0% 100%; animation: cattail 3.2s ease-in-out infinite; }
+@keyframes cattail { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(6deg); } }
+@media (prefers-reduced-motion: reduce) { .cat .eyes, .cat .tail { animation: none; } }

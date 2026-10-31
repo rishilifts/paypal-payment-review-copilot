@@ -6,9 +6,9 @@ Built for the PayPal AI Hackathon.
 
 ## Demo (19 seconds)
 
-[![Demo walkthrough](demo/demo-preview.gif)](demo/copilot-demo-v4-fast.mp4)
+[![Demo walkthrough](demo/demo-preview.gif)](https://rishilifts.github.io/paypal-payment-review-copilot/demo/)
 
-Full video: [demo/copilot-demo-v4-fast.mp4](demo/copilot-demo-v4-fast.mp4)
+[Play the full 19-second demo](https://rishilifts.github.io/paypal-payment-review-copilot/demo/) - autoplays muted in the browser, with controls. Same file: [demo/copilot-demo-v4-fast.mp4](demo/copilot-demo-v4-fast.mp4)
 
 ## How it works
 

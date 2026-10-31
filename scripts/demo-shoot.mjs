@@ -63,10 +63,16 @@ let shooting = true;
 const t0 = Date.now();
 const at = async (ms, fn) => { const w = t0 + ms - Date.now(); if (w > 0) await sleep(w); return fn(); };
 const evalJs = expr => send('Runtime.evaluate', { expression: expr, awaitPromise: true });
-const clickInRow = (amount, sel) => evalJs(`
-  (() => { const row = [...document.querySelectorAll('.row')].find(r => r.textContent.includes('${amount}'));
-    const b = row && row.querySelector('${sel}'); if (b) { b.scrollIntoView({block:'center'}); b.click(); return b.textContent; } return 'not found'; })()`
+const click = sel => evalJs(`
+  (() => { const b = document.querySelector('${sel}'); if (b) { b.scrollIntoView({block:'center'}); b.click(); return b.textContent.trim(); } return 'not found'; })()`
 ).then(r => console.log('click', sel, '->', JSON.stringify(r.result?.value)));
+
+// Walkthrough of the seller-perspective UI: no new sandbox capture, no new AI call.
+// The flagged payment is discovered live; state is restored to marked_for_review
+// after the recording so the queue stays exactly as before.
+const flaggedId = await fetch('http://localhost:8787/api/payments').then(r => r.json())
+  .then(j => { const p = j.payments.find(x => (x.review?.flags || []).length); return p && p.id; });
+console.log('flagged payment:', flaggedId);
 
 await at(5000, () => console.log('dwell done'));
 if (orderId && orderId !== '-') {
@@ -79,12 +85,23 @@ if (orderId && orderId !== '-') {
   await waitApi(3); console.log('third payment in queue at', Date.now() - t0, 'ms');
   await sleep(3500);
 }
-await at(14000, () => clickInRow('742.50', 'button.airun'));
-await sleep(4500);
-await at(21000, () => clickInRow('742.50', 'button.mark'));
-await sleep(4500);
+await at(6000, () => click('.hero a.primary'));        // Check this order
+await sleep(3000);
+await at(11000, () => click('li[data-tick="0"]'));
+await at(12500, () => click('li[data-tick="1"]'));
+await at(14000, () => click('li[data-tick="2"]'));
+await at(16500, () => click('.details summary'));      // Details and AI helper
+await sleep(1500);
+await at(19500, () => click('button[data-act="ai"]')); // cached AI replay - no new API call
+await sleep(3500);
+await at(24500, () => click('button[data-act="done"]')); // Everything checks out -> home
+await sleep(4000);
 shooting = false; await shooter;
 console.log('frames:', frames.length, 'duration ms:', Date.now() - t0);
 frames.forEach((f, i) => fs.writeFileSync(path.join(outDir, `f-${String(i).padStart(5, '0')}.jpg`), Buffer.from(f.data, 'base64')));
 fs.writeFileSync(path.join(outDir, 'timestamps.json'), JSON.stringify(frames.map(f => f.ts)));
+if (flaggedId) {
+  const rr = await fetch(`http://localhost:8787/api/review/${encodeURIComponent(flaggedId)}/mark`, { method: 'POST' }).then(r => r.json()).catch(() => null);
+  console.log('state restored to:', rr && rr.status);
+}
 cleanup(); process.exit(0);

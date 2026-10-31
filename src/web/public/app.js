@@ -32,9 +32,12 @@ function whyText(p) {
   const c = (CFG && CFG.config) || {};
   const flags = (p.review && p.review.flags) || [];
   return flags.map(f => {
-    if (f.signal === 'amount_above_typical_max') return `It is over your ${c.typical_max_amount} ${c.currency || p.currency || ''} review setting.`;
-    if (f.signal === 'outside_markets') return 'The buyer is outside the markets in your review settings.';
-    if (f.signal === 'missing_email') return 'This payment has no buyer email attached.';
+    if (f.signal === 'amount_above_typical_max' || f.signal === 'above your typical order size')
+      return `It is over your ${c.typical_max_amount} ${c.currency || p.currency || ''} review setting.`;
+    if (f.signal === 'outside_markets' || f.signal === 'outside listed markets')
+      return 'The buyer is outside the markets in your review settings.';
+    if (f.signal === 'missing_email' || f.signal === 'missing payer email')
+      return 'This payment has no buyer email attached.';
     return humanize(f.why);
   }).join(' ');
 }

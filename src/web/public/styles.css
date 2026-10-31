@@ -21,8 +21,8 @@ header { padding: 52px 0 8px; text-align: center; }
 .hero-buyer { color: #9aa1ac; font-size: 13px; margin-top: 4px; }
 .hero-why { color: #4b5563; font-size: 15px; margin-top: 16px; max-width: 42ch; }
 .hero-actions { display: flex; align-items: center; gap: 26px; margin-top: 22px; }
-a.primary { color: #0070ba; font-size: 15px; font-weight: 650; text-decoration: none; }
-a.primary:hover { text-decoration: underline; }
+a.primary { display: inline-block; background: #0070ba; color: #fff; font-size: 15px; font-weight: 600; padding: 12px 28px; border-radius: 999px; text-decoration: none; }
+a.primary:hover { background: #005ea6; }
 
 /* Quiet rows: payments with nothing to do */
 .quiet { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; border-top: 1px solid #eef0f3; padding: 16px 0; }
@@ -47,9 +47,10 @@ a.primary:hover { text-decoration: underline; }
 .ticks li.on .circle::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: #0070ba; }
 
 .check-actions { display: flex; align-items: center; gap: 26px; margin-top: 24px; }
-.primarybtn { background: none; border: none; padding: 0; font: inherit; font-size: 15px; font-weight: 650; color: #0070ba; cursor: pointer; }
-.primarybtn:disabled { color: #b6bcc6; cursor: default; text-decoration: none; }
-.primarybtn:hover:not(:disabled) { text-decoration: underline; }
+.primarybtn { display: inline-block; background: #0070ba; color: #fff; border: none; padding: 12px 28px; border-radius: 999px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+.primarybtn:hover:not(:disabled) { background: #005ea6; }
+.primarybtn:disabled { background: #e2e5ea; color: #9aa1ac; cursor: not-allowed; }
+.hint-done { color: #9aa1ac; font-size: 12.5px; margin-top: 10px; }
 
 button.link { background: none; border: none; padding: 0; font: inherit; font-size: 13.5px; font-weight: 500; color: #6b7280; cursor: pointer; }
 button.link.small { font-size: 12.5px; }

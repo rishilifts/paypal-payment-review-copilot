@@ -43,6 +43,7 @@ function whyText(p) {
 function homeHtml() {
   if (!payments.length) return '<div class="empty">No payments yet. Connect a PayPal sandbox app to start reviewing.</div>';
   const parts = [];
+  const quiet = [];
   for (const p of payments) {
     const st = stOf(p);
     const flagged = st === 'needs_review' || st === 'marked_for_review';
@@ -60,10 +61,10 @@ function homeHtml() {
       </section>`);
     } else if (!flagged) {
       const note = st === 'cleared_by_seller' ? 'You checked this one' : 'No rule flags';
-      parts.push(`<div class="quiet" data-id="${esc(p.id)}"><span class="q-amount">${esc(p.amount)} ${esc(p.currency)}</span><span class="q-note">${note}</span></div>`);
+      quiet.push(`<div class="quiet" data-id="${esc(p.id)}"><span class="q-amount">${esc(p.amount)} ${esc(p.currency)}</span><span class="q-note">${note}</span></div>`);
     }
   }
-  return parts.join('');
+  return parts.concat(quiet).join('');
 }
 
 function checkHtml(p) {
@@ -91,6 +92,7 @@ function checkHtml(p) {
       <button class="primarybtn" data-act="done" ${ticks.every(Boolean) ? '' : 'disabled'}>Everything checks out</button>
       ${st === 'marked_for_review' ? '' : '<button class="link" data-act="mark">Mark it for a closer look</button>'}
     </div>
+    <div class="hint-done" data-hint ${ticks.every(Boolean) ? 'hidden' : ''}>Tick the three checks above to finish.</div>
     <details class="details">
       <summary>Details and AI helper</summary>
       <div class="d-body">
@@ -147,7 +149,10 @@ list.addEventListener('click', async e => {
     ticks[i] = !ticks[i];
     tick.classList.toggle('on', ticks[i]);
     const done = tick.closest('.check').querySelector('button[data-act="done"]');
-    if (done) done.disabled = !ticks.every(Boolean);
+    const all = ticks.every(Boolean);
+    if (done) done.disabled = !all;
+    const hint = tick.closest('.check').querySelector('[data-hint]');
+    if (hint) hint.hidden = all;
     return;
   }
   const b = e.target.closest('button[data-act]');

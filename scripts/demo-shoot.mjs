@@ -9,7 +9,7 @@ fs.mkdirSync(outDir, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const server = spawn('node', ['src/server.js'], {
-  env: { ...process.env, AI_PROVIDER: 'meta', PORT: '8787' }, stdio: 'ignore'
+  env: { ...process.env, PORT: '8787' }, stdio: 'ignore'
 });
 const chrome = spawn('google-chrome', ['--headless=new', '--disable-gpu', '--no-sandbox',
   '--hide-scrollbars', '--window-size=1280,720', '--remote-debugging-port=9223', 'about:blank'], { stdio: 'ignore' });

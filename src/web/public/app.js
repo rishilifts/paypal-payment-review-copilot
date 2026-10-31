@@ -1,5 +1,4 @@
 const list = document.getElementById('list');
-const statusEl = document.getElementById('status');
 const baselineEl = document.getElementById('baseline');
 const mockbar = document.getElementById('mockbar');
 
@@ -81,8 +80,6 @@ function checkHtml(p) {
     <h1 class="check-title">Check this order</h1>
     <div class="check-amount">${esc(p.amount)} ${esc(p.currency)}</div>
     <div class="check-buyer">${esc(p.payer_name || 'Buyer')} - ${fmtTime(p.created)}</div>
-    ${st === 'marked_for_review' ? '<p class="marked-note">You marked this one for a closer look.</p>' : ''}
-    <div class="why-label">Why you are seeing this</div>
     <p class="why-text">${esc(whyText(p))}</p>
     <div class="why-label">Before you ship, take a minute to:</div>
     <ul class="ticks">
@@ -110,16 +107,15 @@ function checkHtml(p) {
 
 function route() {
   const m = location.hash.match(/^#\/check\/(.+)$/);
+  document.body.classList.toggle('on-check', !!m);
   if (m) {
     const p = payments.find(x => x.id === decodeURIComponent(m[1]));
     if (p) {
       list.innerHTML = checkHtml(p);
-      statusEl.textContent = '';
       return;
     }
   }
   list.innerHTML = homeHtml();
-  statusEl.textContent = payments.length ? `${payments.length} payments` : '';
 }
 
 async function load() {
@@ -136,7 +132,7 @@ async function load() {
   const c = cfg.config || {};
   document.getElementById('f-markets').value = (c.markets || []).join(', ');
   document.getElementById('f-max').value = c.typical_max_amount ?? '';
-  baselineEl.innerHTML = `Example settings &nbsp;<b>orders over ${esc(c.typical_max_amount)} ${esc(c.currency || '')} get flagged</b> &nbsp;·&nbsp; <b>markets ${esc((c.markets || []).join(', ') || 'not set')}</b>`;
+  baselineEl.textContent = `Example settings: orders over ${c.typical_max_amount} ${c.currency || ''} get flagged`;
   route();
 }
 

@@ -9,10 +9,8 @@ header { padding: 52px 0 8px; text-align: center; }
 .brand { display: flex; align-items: center; justify-content: center; gap: 10px; }
 .cat { width: 38px; height: 38px; }
 .wordmark { color: #6b7280; font-size: 15px; letter-spacing: 0.01em; }
-.sub { color: #9aa1ac; font-size: 13px; margin-top: 12px; }
 .baseline { color: #9aa1ac; font-size: 12px; margin-top: 14px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 .baseline b { color: #4b5563; font-weight: 600; }
-.status { color: #9aa1ac; font-size: 12px; padding: 10px 0 0; text-align: center; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 
 /* Home hero: one flagged order, plain why, one clear action */
 .hero { border-top: 1px solid #eef0f3; padding: 38px 0 34px; }
@@ -36,7 +34,6 @@ a.primary:hover { background: #005ea6; }
 .check-title { font-size: 22px; font-weight: 650; color: #1a1a1a; margin-top: 22px; letter-spacing: -0.01em; }
 .check-amount { font-size: 30px; font-weight: 650; color: #003087; margin-top: 10px; letter-spacing: -0.01em; }
 .check-buyer { color: #9aa1ac; font-size: 13px; margin-top: 4px; }
-.marked-note { color: #c2410c; font-size: 13px; margin-top: 12px; }
 .why-label { color: #9aa1ac; font-size: 12.5px; font-weight: 600; margin-top: 28px; }
 .why-text { color: #1a1a1a; font-size: 15px; margin-top: 6px; max-width: 46ch; }
 
@@ -77,3 +74,6 @@ button.link:disabled { opacity: 0.4; cursor: default; text-decoration: none; }
 .settings input { background: #fff; border: 1px solid #e2e5ea; color: #1a1a1a; font: inherit; font-size: 14px; padding: 9px 12px; border-radius: 6px; }
 .settings input:focus { outline: 1px solid #0070ba; border-color: #0070ba; }
 .settings button[type=submit] { justify-self: start; background: none; border: none; padding: 0; font: inherit; color: #0070ba; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+
+/* check view: hide header extras, keep brand only */
+body.on-check #baseline, body.on-check .settings { display: none; }

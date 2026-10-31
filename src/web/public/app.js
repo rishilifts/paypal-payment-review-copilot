@@ -1,12 +1,10 @@
 const list = document.getElementById('list');
-const status = document.getElementById('status');
+const statusEl = document.getElementById('status');
 const baselineEl = document.getElementById('baseline');
 const mockbar = document.getElementById('mockbar');
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const stateText = { needs_review: 'Needs review', marked_for_review: 'Marked for review', cleared_by_seller: 'Cleared', no_signals: 'No signals' };
-const signalText = { amount_above_typical_max: 'Above your typical order size', outside_markets: 'Outside your listed markets', missing_email: 'Missing payer email' };
-const signalLabel = s => signalText[s] || String(s || '').replace(/_/g, ' ');
+const humanize = s => String(s ?? '').replace(/typical_max_amount/g, 'typical order size').replace(/\b[A-Za-z]+_[A-Za-z_]+\b/g, m => m.replace(/_/g, ' '));
 
 function fmtTime(iso) {
   if (!iso) return '';
@@ -14,76 +12,170 @@ function fmtTime(iso) {
   return isNaN(d) ? iso : d.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-const humanize = s => String(s ?? '').replace(/typical_max_amount/g, 'typical order size').replace(/\b[A-Za-z]+_[A-Za-z_]+\b/g, m => m.replace(/_/g, ' '));
-function row(p) {
+let CFG = null;
+let payments = [];
+const dismissed = new Set();
+const tickState = {};
+
+const CHECKLIST = [
+  'Look at what was ordered',
+  'Confirm the buyer details',
+  'Open the payment in your PayPal account and check it is really there'
+];
+
+const stOf = p => {
   const r = p.review || {};
   const hasFlags = (r.flags || []).length > 0;
-  const st = r.status && r.status !== 'needs_review' ? r.status : (hasFlags ? 'needs_review' : 'no_signals');
-  const flags = (r.flags || []).map(f => `
-    <div class="flag">
-      <div class="signal">${esc(signalLabel(f.signal))}</div>
-      <div class="why">${esc(humanize(f.why))}</div>
-      ${f.suggested_check ? `<div class="check">Check: ${esc(humanize(f.suggested_check))}</div>` : ''}
-    </div>`).join('');
+  return r.status && r.status !== 'needs_review' ? r.status : (hasFlags ? 'needs_review' : 'no_signals');
+};
+
+function whyText(p) {
+  const c = (CFG && CFG.config) || {};
+  const flags = (p.review && p.review.flags) || [];
+  return flags.map(f => {
+    if (f.signal === 'amount_above_typical_max') return `It is over your ${c.typical_max_amount} ${c.currency || p.currency || ''} review setting.`;
+    if (f.signal === 'outside_markets') return 'The buyer is outside the markets in your review settings.';
+    if (f.signal === 'missing_email') return 'This payment has no buyer email attached.';
+    return humanize(f.why);
+  }).join(' ');
+}
+
+function homeHtml() {
+  if (!payments.length) return '<div class="empty">No payments yet. Connect a PayPal sandbox app to start reviewing.</div>';
+  const parts = [];
+  for (const p of payments) {
+    const st = stOf(p);
+    const flagged = st === 'needs_review' || st === 'marked_for_review';
+    if (flagged && !dismissed.has(p.id)) {
+      parts.push(`
+      <section class="hero" data-id="${esc(p.id)}">
+        <div class="hero-label">${st === 'marked_for_review' ? 'Marked for a closer look' : 'New order'}</div>
+        <div class="hero-amount">${esc(p.amount)} ${esc(p.currency)}</div>
+        <div class="hero-buyer">${esc(p.payer_name || 'Buyer')} - ${fmtTime(p.created)}</div>
+        <p class="hero-why">${esc(whyText(p))} Worth a quick look before you ship.</p>
+        <div class="hero-actions">
+          <a class="primary" href="#/check/${encodeURIComponent(p.id)}">Check this order</a>
+          ${st === 'needs_review' ? '<button class="link" data-act="skip">Skip for now</button>' : ''}
+        </div>
+      </section>`);
+    } else if (!flagged) {
+      const note = st === 'cleared_by_seller' ? 'You checked this one' : 'No rule flags';
+      parts.push(`<div class="quiet" data-id="${esc(p.id)}"><span class="q-amount">${esc(p.amount)} ${esc(p.currency)}</span><span class="q-note">${note}</span></div>`);
+    }
+  }
+  return parts.join('');
+}
+
+function checkHtml(p) {
+  const st = stOf(p);
+  const ticks = tickState[p.id] || (tickState[p.id] = [false, false, false]);
+  const r = p.review || {};
   const aiBtn = p.ai && !p.ai.ai_status
-    ? `<button class="airun" data-act="ai">AI review saved - replay (no new call)</button>`
-    : `<button class="airun" data-act="ai">Run AI review - uses one Meta credit call</button>`;
-  const actions = st === 'needs_review'
-    ? `<div class="actions"><button class="mark" data-act="mark">Mark for review</button><button class="clear" data-act="clear">Clear flags</button></div>`
-    : st === 'marked_for_review'
-    ? `<div class="actions"><button class="clear" data-act="clear">Clear flags</button></div>`
-    : '';
+    ? `<button class="link small" data-act="ai">Show the saved AI note again - no new call</button>`
+    : `<button class="link small" data-act="ai">Ask the AI helper for a second look - one call, then the answer is saved</button>`;
+  const flags = (r.flags || []).map(f => `<div class="d-row"><b>Flag</b><span>${esc(humanize(f.signal))} - ${esc(humanize(f.why))}</span></div>`).join('');
   return `
-  <article class="row" data-id="${esc(p.id)}">
-    <div class="top">
-      <span class="amount">${esc(p.amount)} ${esc(p.currency)}</span>
-      <span class="state ${esc(st)}">${stateText[st] || esc(st)}</span>
-      ${r.provider === 'meta' ? `<span class="aitag">AI review - Meta ${esc(r.model || 'muse-spark')}</span>` : r.mocked ? '<span class="rulestag">rules-based</span>' : ''}
+  <section class="check" data-id="${esc(p.id)}">
+    <a class="back" href="#">&larr; Back</a>
+    <h1 class="check-title">Check this order</h1>
+    <div class="check-amount">${esc(p.amount)} ${esc(p.currency)}</div>
+    <div class="check-buyer">${esc(p.payer_name || 'Buyer')} - ${fmtTime(p.created)}</div>
+    ${st === 'marked_for_review' ? '<p class="marked-note">You marked this one for a closer look.</p>' : ''}
+    <div class="why-label">Why you are seeing this</div>
+    <p class="why-text">${esc(whyText(p))}</p>
+    <div class="why-label">Before you ship, take a minute to:</div>
+    <ul class="ticks">
+      ${CHECKLIST.map((c, i) => `<li data-tick="${i}" class="${ticks[i] ? 'on' : ''}"><span class="circle"></span><span>${esc(c)}</span></li>`).join('')}
+    </ul>
+    <div class="check-actions">
+      <button class="primarybtn" data-act="done" ${ticks.every(Boolean) ? '' : 'disabled'}>Everything checks out</button>
+      ${st === 'marked_for_review' ? '' : '<button class="link" data-act="mark">Mark it for a closer look</button>'}
     </div>
-    <div class="meta">${esc(p.payer_name || 'Buyer')} · ${esc(p.payer_email || 'no email')} · ${esc(p.country || 'n/a')} · ${fmtTime(p.created)} · ${esc(p.status || '')}</div>
-    ${flags ? `<div class="flags">${flags}</div>` : (st === 'no_signals' ? '<div class="clean">Nothing here conflicts with your settings.</div>' : '')}
-    ${r.summary && hasFlags ? `<div class="summary">${esc(humanize(r.summary))}</div>` : ''}
-    ${actions}
-    <div class="actions">${aiBtn}</div>
-    <div class="ainote" data-ainote></div>
-  </article>`;
+    <details class="details">
+      <summary>Details and AI helper</summary>
+      <div class="d-body">
+        <div class="d-row"><b>Buyer</b><span>${esc(p.payer_name || 'Buyer')} - ${esc(p.payer_email || 'no email')}</span></div>
+        <div class="d-row"><b>Country</b><span>${esc(p.country || 'n/a')}</span></div>
+        <div class="d-row"><b>PayPal status</b><span>${esc(p.status || '')}</span></div>
+        <div class="d-row"><b>Time</b><span>${fmtTime(p.created)}</span></div>
+        ${flags}
+        ${r.summary ? `<div class="d-row"><b>Summary</b><span>${esc(humanize(r.summary))}</span></div>` : ''}
+        <div class="d-row">${aiBtn}<div class="ainote" data-ainote></div></div>
+      </div>
+    </details>
+  </section>`;
+}
+
+function route() {
+  const m = location.hash.match(/^#\/check\/(.+)$/);
+  if (m) {
+    const p = payments.find(x => x.id === decodeURIComponent(m[1]));
+    if (p) {
+      list.innerHTML = checkHtml(p);
+      statusEl.textContent = '';
+      return;
+    }
+  }
+  list.innerHTML = homeHtml();
+  statusEl.textContent = payments.length ? `${payments.length} payments` : '';
 }
 
 async function load() {
   const [cfg, r] = await Promise.all([fetch('/api/config').then(x => x.json()), fetch('/api/payments').then(x => x.json())]);
+  CFG = cfg;
+  payments = r.payments;
   if (cfg.mode === 'mock' && cfg.paypal) {
-    mockbar.textContent = 'SANDBOX MODE - real PayPal sandbox test payments, no real money. Reviews are rules-based by default; AI-assisted review (Meta Muse Spark) runs only on demand per payment.';
+    mockbar.textContent = 'Demo mode: PayPal sandbox test payments - no real money is involved.';
     mockbar.classList.remove('hidden');
   } else if (cfg.mode === 'mock') {
-    mockbar.textContent = 'LOCAL MOCK SAMPLE - no PayPal account connected, AI not connected. Data below is placeholder.';
+    mockbar.textContent = 'Local sample data - no PayPal account connected.';
     mockbar.classList.remove('hidden');
   } else mockbar.classList.add('hidden');
   const c = cfg.config || {};
-  const baseLabel = 'Demo baseline (example settings)';
   document.getElementById('f-markets').value = (c.markets || []).join(', ');
   document.getElementById('f-max').value = c.typical_max_amount ?? '';
-  baselineEl.innerHTML = `${baseLabel} &nbsp;<b>markets ${esc((c.markets || []).join(' · ') || 'not set')}</b> &nbsp;·&nbsp; <b>typical order up to ${esc(c.typical_max_amount)} ${esc(c.currency || '')}</b>`;
-  status.textContent = r.payments.length ? `${r.payments.length} payment(s) in queue` : '';
-  list.innerHTML = r.payments.length
-    ? r.payments.map(row).join('')
-    : '<div class="empty">No payments yet. Connect a PayPal sandbox app to start reviewing.</div>';
+  baselineEl.innerHTML = `Example settings &nbsp;<b>orders over ${esc(c.typical_max_amount)} ${esc(c.currency || '')} get flagged</b> &nbsp;·&nbsp; <b>markets ${esc((c.markets || []).join(', ') || 'not set')}</b>`;
+  route();
 }
 
 list.addEventListener('click', async e => {
+  const tick = e.target.closest('li[data-tick]');
+  if (tick) {
+    const id = tick.closest('.check').dataset.id;
+    const i = Number(tick.dataset.tick);
+    const ticks = tickState[id] || (tickState[id] = [false, false, false]);
+    ticks[i] = !ticks[i];
+    tick.classList.toggle('on', ticks[i]);
+    const done = tick.closest('.check').querySelector('button[data-act="done"]');
+    if (done) done.disabled = !ticks.every(Boolean);
+    return;
+  }
   const b = e.target.closest('button[data-act]');
   if (!b) return;
-  const id = b.closest('.row').dataset.id;
+  const host = b.closest('[data-id]');
+  const id = host && host.dataset.id;
+  if (!id) return;
+  if (b.dataset.act === 'skip') {
+    dismissed.add(id);
+    route();
+    return;
+  }
   b.disabled = true;
   if (b.dataset.act === 'ai') {
-    const note = b.closest('.row').querySelector('[data-ainote]');
-    note.textContent = 'Running AI review (one Meta API call)...';
+    const note = b.closest('.d-row').querySelector('[data-ainote]');
+    note.textContent = 'Asking the AI helper (one call)...';
     const r = await fetch(`/api/review/${encodeURIComponent(id)}/rerun?ai=1`, { method: 'POST' });
     const j = await r.json().catch(() => ({}));
-    note.textContent = j.cached ? 'Saved AI review shown - no new API call made.'
-      : j.ok ? 'AI review complete - result saved; repeats replay it without new calls.'
-      : `AI review withheld (${j.ai_status || j.error || 'error'}) - rules review unchanged.`;
-  } else {
-    await fetch(`/api/review/${encodeURIComponent(id)}/${b.dataset.act}`, { method: 'POST' });
+    note.textContent = j.cached ? 'Saved AI note shown - no new call made.'
+      : j.ok ? 'AI note ready and saved - asking again replays it without a new call.'
+      : `AI note unavailable (${j.ai_status || j.error || 'error'}) - the flags above are unchanged.`;
+    b.disabled = false;
+    return;
+  }
+  if (b.dataset.act === 'done' || b.dataset.act === 'mark') {
+    const ep = b.dataset.act === 'done' ? 'clear' : 'mark';
+    await fetch(`/api/review/${encodeURIComponent(id)}/${ep}`, { method: 'POST' });
+    location.hash = '';
   }
   await load();
 });
@@ -97,7 +189,7 @@ document.getElementById('settingsform').addEventListener('submit', async e => {
   if (r.ok) {
     const cfg = await fetch('/api/config').then(x => x.json());
     if (cfg.mode === 'mock') {
-      msg.textContent = 'Saved. Re-checking queue...';
+      msg.textContent = 'Saved. Re-checking payments...';
       const ps = await fetch('/api/payments').then(x => x.json());
       for (const p of ps.payments) await fetch(`/api/review/${encodeURIComponent(p.id)}/rerun`, { method: 'POST' });
       msg.textContent = 'Saved.';
@@ -111,5 +203,6 @@ document.getElementById('settingsform').addEventListener('submit', async e => {
   }
 });
 
+window.addEventListener('hashchange', route);
 load();
 setInterval(load, 5000);

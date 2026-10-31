@@ -14,36 +14,56 @@ header { padding: 52px 0 8px; text-align: center; }
 .baseline b { color: #4b5563; font-weight: 600; }
 .status { color: #9aa1ac; font-size: 12px; padding: 10px 0 0; text-align: center; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 
-.row { border-top: 1px solid #eef0f3; padding: 30px 0 26px; }
-.row:last-of-type { border-bottom: 1px solid #eef0f3; }
-.row .top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.amount { font-size: 22px; font-weight: 650; color: #003087; letter-spacing: -0.01em; white-space: nowrap; }
-.state { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #6b7280; white-space: nowrap; }
-.state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #c3c9d1; }
-.state.needs_review::before { background: #0070ba; }
-.state.marked_for_review::before { background: #c2410c; }
-.state.cleared_by_seller::before, .state.no_signals::before { background: #1e8e3e; }
-.meta { color: #9aa1ac; font-size: 12.5px; margin-top: 6px; }
+/* Home hero: one flagged order, plain why, one clear action */
+.hero { border-top: 1px solid #eef0f3; padding: 38px 0 34px; }
+.hero-label { color: #9aa1ac; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
+.hero-amount { font-size: 30px; font-weight: 650; color: #003087; letter-spacing: -0.01em; margin-top: 8px; }
+.hero-buyer { color: #9aa1ac; font-size: 13px; margin-top: 4px; }
+.hero-why { color: #4b5563; font-size: 15px; margin-top: 16px; max-width: 42ch; }
+.hero-actions { display: flex; align-items: center; gap: 26px; margin-top: 22px; }
+a.primary { color: #0070ba; font-size: 15px; font-weight: 650; text-decoration: none; }
+a.primary:hover { text-decoration: underline; }
 
-.flags { margin-top: 18px; }
-.flag { padding-left: 14px; border-left: 2px solid #0070ba; margin-bottom: 14px; }
-.flag .signal { font-weight: 600; font-size: 14px; }
-.flag .why { color: #4b5563; font-size: 13.5px; margin-top: 2px; }
-.flag .check { color: #9aa1ac; font-size: 12.5px; margin-top: 3px; }
-.clean { color: #9aa1ac; font-size: 13.5px; margin-top: 10px; }
-.summary { color: #4b5563; font-size: 12.5px; margin-top: 6px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+/* Quiet rows: payments with nothing to do */
+.quiet { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; border-top: 1px solid #eef0f3; padding: 16px 0; }
+.quiet .q-amount { font-size: 15px; font-weight: 600; color: #1f2a44; white-space: nowrap; }
+.quiet .q-note { color: #9aa1ac; font-size: 13px; }
 
-.actions { display: flex; gap: 26px; margin-top: 16px; }
-button { background: none; border: none; padding: 0; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
-button.mark { color: #0070ba; }
-button.clear { color: #6b7280; font-weight: 500; }
-button.airun { color: #6b7280; font-weight: 500; font-size: 12.5px; }
-button:hover { text-decoration: underline; }
-button:disabled { opacity: 0.4; cursor: default; text-decoration: none; }
+/* Check page */
+.check { border-top: 1px solid #eef0f3; padding: 26px 0 10px; }
+.back { color: #9aa1ac; font-size: 13.5px; text-decoration: none; }
+.back:hover { text-decoration: underline; }
+.check-title { font-size: 22px; font-weight: 650; color: #1a1a1a; margin-top: 22px; letter-spacing: -0.01em; }
+.check-amount { font-size: 30px; font-weight: 650; color: #003087; margin-top: 10px; letter-spacing: -0.01em; }
+.check-buyer { color: #9aa1ac; font-size: 13px; margin-top: 4px; }
+.marked-note { color: #c2410c; font-size: 13px; margin-top: 12px; }
+.why-label { color: #9aa1ac; font-size: 12.5px; font-weight: 600; margin-top: 28px; }
+.why-text { color: #1a1a1a; font-size: 15px; margin-top: 6px; max-width: 46ch; }
+
+.ticks { list-style: none; padding: 0; margin-top: 12px; }
+.ticks li { display: flex; align-items: center; gap: 12px; padding: 10px 0; font-size: 15px; color: #1a1a1a; cursor: pointer; user-select: none; }
+.ticks .circle { width: 18px; height: 18px; flex: 0 0 18px; border: 2px solid #c3c9d1; border-radius: 50%; position: relative; }
+.ticks li.on .circle { border-color: #0070ba; }
+.ticks li.on .circle::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: #0070ba; }
+
+.check-actions { display: flex; align-items: center; gap: 26px; margin-top: 24px; }
+.primarybtn { background: none; border: none; padding: 0; font: inherit; font-size: 15px; font-weight: 650; color: #0070ba; cursor: pointer; }
+.primarybtn:disabled { color: #b6bcc6; cursor: default; text-decoration: none; }
+.primarybtn:hover:not(:disabled) { text-decoration: underline; }
+
+button.link { background: none; border: none; padding: 0; font: inherit; font-size: 13.5px; font-weight: 500; color: #6b7280; cursor: pointer; }
+button.link.small { font-size: 12.5px; }
+button.link:hover { text-decoration: underline; }
+button.link:disabled { opacity: 0.4; cursor: default; text-decoration: none; }
+
+/* Tucked-away details */
+.details { margin-top: 34px; border-top: 1px solid #eef0f3; padding-top: 16px; }
+.details summary { color: #6b7280; font-size: 13px; font-weight: 600; cursor: pointer; }
+.d-body { margin-top: 14px; display: grid; gap: 10px; }
+.d-row { display: grid; grid-template-columns: 110px 1fr; gap: 10px; font-size: 13px; }
+.d-row b { color: #6b7280; font-weight: 600; }
+.d-row span { color: #4b5563; }
 .ainote { font-size: 12px; color: #9aa1ac; margin-top: 6px; }
-
-.aitag { font-size: 11px; color: #0070ba; }
-.rulestag { font-size: 11px; color: #9aa1ac; }
 
 .fineprint { color: #b6bcc6; font-size: 12px; padding: 30px 0 56px; text-align: center; }
 .empty { color: #9aa1ac; padding: 56px 0; border-top: 1px solid #eef0f3; text-align: center; }
@@ -55,4 +75,4 @@ button:disabled { opacity: 0.4; cursor: default; text-decoration: none; }
 .settings .hint { color: #9aa1ac; font-size: 12px; font-weight: 400; }
 .settings input { background: #fff; border: 1px solid #e2e5ea; color: #1a1a1a; font: inherit; font-size: 14px; padding: 9px 12px; border-radius: 6px; }
 .settings input:focus { outline: 1px solid #0070ba; border-color: #0070ba; }
-.settings button[type=submit] { justify-self: start; color: #0070ba; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.settings button[type=submit] { justify-self: start; background: none; border: none; padding: 0; font: inherit; color: #0070ba; font-size: 13.5px; font-weight: 600; cursor: pointer; }
